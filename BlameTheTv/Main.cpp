@@ -90,7 +90,7 @@ int main(int argc, char** argv)
             std::cout << timestamp << ": " << relFrameNum + 2 << std::endl;
             if (relFrameNum + startingFrames < hist.size())
             {
-                frame = hist[relFrameNum + startingFrames];
+                hist[relFrameNum + startingFrames].copyTo(frame);
             }
             else
             {
