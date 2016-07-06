@@ -10,8 +10,9 @@
 
 using namespace cv;
 
-static const Rect LED_ROI(152, 0, 72, 64);
-static bool detectGreenThing(const Mat& frame);
+// adjust rectangle size as needed
+static const Rect LED_ROI(20, 180, 20, 20);
+static bool detectLed(const Mat& frame);
 
 int main(int argc, char** argv)
 {
@@ -51,34 +52,28 @@ int main(int argc, char** argv)
         std::vector<Mat> hist;
 
         // Fast forward until LED is on
+        first = globalFrameNumber;
         do
         {
-            first = globalFrameNumber;
-            do
-            {
-                cap >> frame;
-                if (frame.empty())
-                    goto QUIT;
-                ++globalFrameNumber;
-            } while (!detectGreenThing(frame));
-        } while (globalFrameNumber - first < 100);
+            cap >> frame;
+            if (frame.empty())
+                goto QUIT;
+            ++globalFrameNumber;
+        } while (!detectLed(frame));
 
-        // Fast forward until LED is off
+		// Fast forward until LED is off
+        first = globalFrameNumber;
         do
         {
-            first = globalFrameNumber;
-            do
-            {
-                cap >> frame;
-                if (frame.empty())
-                    goto QUIT;
-                ++globalFrameNumber;
+            cap >> frame;
+            if (frame.empty())
+                goto QUIT;
+            ++globalFrameNumber;
 
-                hist.push_back(frame.clone());
-                while (hist.size() > 100)
-                    hist.erase(hist.begin());
-            } while (detectGreenThing(frame));
-        } while (globalFrameNumber - first < 200);
+            hist.push_back(frame.clone());
+            while (hist.size() > 100)
+                hist.erase(hist.begin());
+        } while (detectLed(frame));
 
         // Go frame by frame
         const uint64_t timestamp = globalFrameNumber;
@@ -105,28 +100,28 @@ int main(int argc, char** argv)
             imshow("BlameTheTv", frame);
             switch (waitKey())
             {
-            case KEY_RIGHT:
-                ++relFrameNum;
-                break;
+				case KEY_RIGHT:
+					++relFrameNum;
+					break;
 
-            case KEY_LEFT:
-                if (relFrameNum + startingFrames > 0)
-                    --relFrameNum;
-                break;
+				case KEY_LEFT:
+					if (relFrameNum + startingFrames > 0)
+						--relFrameNum;
+					break;
 
-            case KEY_DEL:
-                slowMo = false;
-                break;
+				case KEY_DEL:
+					slowMo = false;
+					break;
 
-            case KEY_ESC:
-                goto QUIT;
+				case KEY_ESC:
+					goto QUIT;
 
-            case KEY_RET:
-                fprintf(f, "%llu,%d\n", timestamp, relFrameNum + 2);
-                slowMo = false;
+				case KEY_RET:
+					fprintf(f, "%llu,%d\n", timestamp, relFrameNum + 2);
+					slowMo = false;
 
-            default:
-                break;
+				default:
+					break;
             }
         }
     }
@@ -137,11 +132,15 @@ QUIT:
     return 0;
 }
 
-static bool detectGreenThing(const Mat& frame)
+static bool detectLed(const Mat& frame)
 {
-    Mat gray;
-    cvtColor(frame(LED_ROI), gray, CV_BGR2GRAY);
-    threshold(gray, gray, 75, 255, THRESH_BINARY);
-
-    return countNonZero(gray) > 6;
+	Mat color;
+	// BLUE = 1, GREEN = 2, RED = 3
+	extractChannel(frame(LED_ROI), color, 1);
+	cvtColor(frame(LED_ROI), color, CV_BGR2GRAY);
+	// adjust this threshold as needed
+	threshold(color, color, 75, 255, THRESH_BINARY);
+	std::cout << "green count: " << countNonZero(color) << std::endl;
+	// adjust this threshold as needed
+	return countNonZero(color) > 2;
 }
